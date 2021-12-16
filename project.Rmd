@@ -1,0 +1,407 @@
+---
+title: "ADA-project"
+author: "Jane Shi"
+date: "11/24/2021"
+output: html_document
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r}
+plot(cars)
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
+```
+#import the data
+```{r, echo=FALSE, eval=FALSE}
+write('PATH="${RTOOLS40_HOME}\\usr\\bin;${PATH}"', file = "~/.Renviron", append = TRUE)
+Sys.which("make")
+install.packages("rio")
+install.Rtools(check = F)
+install.packages("Hmisc")
+install.packages("pacman")
+library(Hmisc)
+library(rio)
+library(readr)
+library(tidyverse)
+library(haven)
+pacman::p_load(ROCR, odds.n.ends, blorr, lmtest, car)
+
+LLCP2020 <- read.csv(file="C:\\Users\\15174\\OneDrive\\Desktop\\ADA project\\llcp2020.csv")
+```
+#create smaller dataset for Missouri
+```{r}
+class(LLCP2020$X_STATE)
+LLCP2020$X_STATE<-as.numeric(LLCP2020$X_STATE)
+ace.1<-LLCP2020[LLCP2020$X_STATE==29,]
+
+```
+
+```{r}
+#check type of variable
+class(ace.1$ACEDEPRS)
+#recode the variable of adverse childhood experience to get ACE scores
+ace.1 <- ace.1 %>%
+  mutate(ACEDEPRS.1 = case_when(ACEDEPRS ==1 ~ 1,
+                                     ACEDEPRS %in% c(2, 7, 9) ~ 0)) %>%
+  mutate(ACEDRINK.1 = case_when(ACEDRINK ==1 ~ 1,
+                                     ACEDRINK %in% c(2, 7, 9) ~ 0)) %>%
+  mutate(ACEDRUGS.1 = case_when(ACEDRUGS ==1 ~ 1,
+                                     ACEDRUGS %in% c(2, 7, 9) ~ 0)) %>%
+  mutate(ACEPRISN.1 = case_when(ACEPRISN ==1 ~ 1,
+                                     ACEPRISN %in% c(2, 7, 9) ~ 0))
+
+table(ace.1$ACEDEPRS.1, ace.1$ACEDEPRS)
+table(ace.1$ACEDRINK.1, ace.1$ACEDRINK)
+table(ace.1$ACEDRUGS.1, ace.1$ACEDRUGS)
+table(ace.1$ACEPRISN.1, ace.1$ACEPRISN)
+class(ace.1$ACEDEPRS.1)
+
+ace.1 <- ace.1 %>%
+  mutate(ACEDIVRC.1 = case_when(ACEDIVRC %in% c(1,8) ~ 1,
+                                     ACEDIVRC %in% c(2, 7, 9) ~ 0)) %>%
+  mutate(ACEPUNCH.1 = case_when(ACEPUNCH %in% c(2, 3) ~ 1,
+                                     ACEPUNCH %in% c(1, 7, 9) ~ 0)) %>%
+  mutate(ACEHURT1.1 = case_when(ACEHURT1 %in% c(2, 3) ~ 1,
+                                     ACEHURT1 %in% c(1, 7, 9) ~ 0)) %>%
+  mutate(ACESWEAR.1 = case_when(ACESWEAR %in% c(2, 3) ~ 1,
+                                     ACESWEAR %in% c(1, 7, 9) ~ 0)) %>%
+  mutate(ACETOUCH.1 = case_when(ACETOUCH %in% c(2, 3) ~ 1,
+                                     ACETOUCH %in% c(1, 7, 9) ~ 0)) %>%
+  mutate(ACETTHEM.1 = case_when(ACETTHEM %in% c(2, 3) ~ 1,
+                                     ACETTHEM %in% c(1, 7, 9) ~ 0)) %>%
+  mutate(ACEHVSEX.1 = case_when(ACEHVSEX %in% c(2, 3) ~ 1,
+                                     ACEHVSEX %in% c(1, 7, 9) ~ 0)) 
+table(ace.1$ACEDIVRC.1, ace.1$ACEDIVRC)
+table(ace.1$ACEPUNCH.1, ace.1$ACEPUNCH)
+table(ace.1$ACEHURT1.1, ace.1$ACEHURT1)
+table(ace.1$ACESWEAR.1, ace.1$ACESWEAR)
+table(ace.1$ACETOUCH.1, ace.1$ACETOUCH)
+table(ace.1$ACETTHEM.1, ace.1$ACETTHEM)
+table(ace.1$ACEHVSEX.1, ace.1$ACEHVSEX)
+```
+#get ACEs Score
+```{r}
+ace.1 <- ace.1 %>%
+  mutate(aceScore = ACEDEPRS.1+ACEDRINK.1+ACEDRUGS.1+ACEPRISN.1+
+          ACEDIVRC.1+ACEPUNCH.1+ACEHURT1.1+ACESWEAR.1+ACETOUCH.1
+         +ACETTHEM.1+ACEHVSEX.1)
+class(ace.1$aceScore)
+summary(ace.1$aceScore)
+```
+#create variable of having risk behaviors (heavy alcohol consumption and heavy tobacco use)
+```{r}
+class(ace.1$X_RFDRHV7)
+class(ace.1$SMOKE100)
+ace.1$riskbhv <- ifelse(ace.1$X_RFDRHV7 ==2,1,
+                        ifelse (ace.1$SMOKE100==1,1,
+                                ifelse(ace.1$X_RFDRHV7==1&ace.1$SMOKE100==2,0,NA)))
+
+class(ace.1$riskbhv)
+table(ace.1$riskbhv, ace.1$X_RFDRHV7)
+table(ace.1$riskbhv, ace.1$SMOKE100)
+
+```
+Let's examine a boxplot to see if there are any potential differences in risk behavior by ACEs.
+```{r}
+ace.1$riskbhv = factor(ace.1$riskbhv, 0:1, c("No", "Yes"))
+
+#Drop NA's from diabetes binary and bmi variables and then plot the boxplots
+
+ace.1 %>% 
+  drop_na(c(riskbhv, aceScore)) %>% 
+  ggplot(aes(x = riskbhv, y = aceScore)) +
+      geom_boxplot(aes(fill = riskbhv)) +
+      labs(x = "having risk behaviours", y = "ACE Score") +
+      theme_bw()
+```
+
+```{r}
+#recoding races to three categories
+ace.1 <- ace.1 %>%
+  mutate(race_cat = case_when(X_IMPRACE ==1 ~ 0,
+                               X_IMPRACE ==2 ~ 1,
+                               X_IMPRACE %in% c(3,4,5,6) ~ 2),
+         race_cat = factor(race_cat, 0:2, c("White", "Black", "Others"))) #make it as a factor variable
+
+#checking to make sure recode worked
+table(ace.1$race_cat, ace.1$X_IMPRACE)
+
+#recoding education level
+ace.1 <- ace.1 %>%
+  mutate(edu_binary = case_when(X_EDUCAG %in% c(1,2) ~ 0,
+                               X_EDUCAG %in% c(3,4) ~ 1),
+        edu_binary = factor(edu_binary, 0:1, c("didnt attend college", "attended college"))) #make it as a factor variable
+
+#checking to make sure recode worked
+table(ace.1$edu_binary, ace.1$X_EDUCAG)
+
+```
+
+```{r}
+#Let's create a categorical ACE variable according to No ACE (0 score) Low Ace (1-3 score), High Ace (4+ score)-- reference to CDC
+
+#recoding ACE score to 3 categories
+ace.1 <- ace.1 %>%
+  mutate(aceScore_cat = case_when(aceScore ==0 ~ 0,
+                             aceScore >= 1 & aceScore < 4 ~ 1,
+                             aceScore >= 4 ~ 2),
+         aceScore_cat = factor(aceScore_cat, 0:2, c("No Ace", "Low Ace", "High Ace"))) #make it as a factor variable
+
+#checking to make sure recode worked
+summary(ace.1$aceScore_cat)
+by(ace.1$aceScore, ace.1$aceScore_cat, summary)
+```
+Finally, let's create a dataset with only valid data for each variable used in our models.
+```{r}
+#checking summaries for each variable to get an idea of NA values
+summary(ace.1 %>% select(aceScore, riskbhv, race_cat,edu_binary))
+
+#subsetting by the variables that we want to include in our model
+ace.1$rowID <-rownames(ace.1)
+ace.1_cc <- ace.1 %>%
+  select("rowID", "riskbhv", "aceScore", "aceScore_cat", "race_cat","edu_binary") %>%
+  na.omit() #omitting NA's in the data set
+
+#checking to make sure there are no NA's
+summary(ace.1_cc)
+```
+
+## Logistic model for ace score
+```{r}
+#logistic model with ace score as a predictor
+aceScoreLogit <- glm(riskbhv ~ aceScore, data=ace.1_cc, family="binomial")
+summary(aceScoreLogit)
+
+#calculate and print ORs and 95% CIs  
+ORaceScore<-exp(cbind(OR = coef(aceScoreLogit), confint(aceScoreLogit))) #calculate ORs and 95% CIs
+ORaceScore #print ORs and 95% CIs
+
+odds.n.ends(aceScoreLogit)
+```
+## Test assumptions of linearity and influence
+
+*Linearity*
+
+To do the Box Tidwell test, we need to create a term for the predictor*log(predictor) and then run a logistic regression with that term. Remember, a significant coefficient means the assumption is violated.
+```{r}
+#linearity
+ace.1_cc <- ace.1_cc %>%
+  mutate(aceScore.times.logaceScore = aceScore * log(aceScore)) #create term to test linearity
+
+boxTidwellaceScore <- glm(riskbhv ~ aceScore + aceScore.times.logaceScore, data=ace.1_cc, family="binomial") #Box Tidwell technique, test the assumption of linearity
+
+summary(boxTidwellaceScore)
+```
+What would your conclusion be about the linearity assumption?
+
+Answer: Because the coefficient of the interaction term between aceScore and logaceScore is not significant, we can conclude that the linearity assumption is not violated in this model. So I will just use ACEs score (continuous variable) for my final analysis
+
+*Influence*
+Here, we check for influential data using Cook's Distance.
+```{r}
+#influence plot - Cook's D plot-identifies observation number in parent dataset
+plot(aceScoreLogit, which=4, id.n=5, col="red") 
+```
+
+Note that testing for multicollinearity are not necessary because we only have one predictor.
+
+*Model Fits*
+
+```{r}
+#Various pseudo R squares, log likelihood, deviance, AIC, BIC
+blr_model_fit_stats(aceScoreLogit)
+
+#Hosmer lemeshow goodness of fit test: a significant p value indicates a bad fit
+blr_test_hosmer_lemeshow(aceScoreLogit)
+```
+The p value is not significant, so our model is good to go.
+
+
+##Multivariate model with risk behavior as the dependent variable and eudcation level, race, and aceScore as the independent variables
+
+```{r}
+#edu,race, and ace score cat logistic model
+AceEduRaceLogit <- glm(riskbhv ~ race_cat+edu_binary+aceScore, data=ace.1_cc, family="binomial")
+summary(AceEduRaceLogit)
+
+#calculate and print ORs and 95% CIs  
+ORmodel<-exp(cbind(OR = coef(AceEduRaceLogit), confint(AceEduRaceLogit))) #calculate ORs and 95% CIs
+ORmodel #print ORs and 95% CIs
+
+odds.n.ends(AceEduRaceLogit)
+```
+## Look at assumptions of multicollinearity and influence
+
+Finally, we will check for influential data in the full model and multicollinearity between our predictors.
+
+*Multicollinearity*
+```{r}
+#Variance Inflation Factors
+vif(AceEduRaceLogit)
+```
+the VIFs are below 10, which means we dont need to worry
+
+*Influence*
+Here, we check for influential data using Cook's Distance.
+```{r}
+#influence plot - Cook's D plot-identifies observation number in parent dataset
+plot(AceEduRaceLogit, which=4, id.n=5, col="red") 
+```
+#exclude the top 5 influential observations and compare Betas for ACEs socre between models with and without these observation
+```{r, echo=FALSE, eval = FALSE}
+AceEduRaceLogit.modex<-update(AceEduRaceLogit, subset=c(-196385,-197865,-200196,-200852,-201164))
+compareCoefs(AceEduRaceLogit,AceEduRaceLogit.modex)
+```
+there is no difference between model 1 and model 2. I will not drop the top5 influential observations as these observations did not make significant impact.
+
+## Model fit of the full model
+```{r}
+#Various pseudo R squares, log likelihood, deviance, AIC, BIC
+blr_model_fit_stats(AceEduRaceLogit)
+
+#Hosmer lemeshow goodness of fit test: a significant p value indicates a bad fit
+blr_test_hosmer_lemeshow(AceEduRaceLogit)
+```
+The p value is not significant, we have a good model
+
+## Full model vs. reduced model
+
+```{r}
+#likilihood ratio test: compare two nested models
+lrtest(AceEduRaceLogit, aceScoreLogit)
+```
+The absolute values of log likelihood of AceScore only model is larger than the model with AceScore, education, and race. Based on the significant p value from LR test, we can conclude that the model with AceScore, education, and race is better than AceScore only model.
+
+#testing effect modification
+```{r}
+AceEduRaceEM<- glm(riskbhv ~ aceScore+race_cat+(aceScore*race_cat)+edu_binary+(aceScore*edu_binary), data=ace.1_cc, family="binomial")
+#likilihood ratio test: compare two  models
+lrtest(AceEduRaceEM, AceEduRaceLogit)
+
+AceRaceEM<- glm(riskbhv ~ aceScore+race_cat+(aceScore*race_cat), data=ace.1_cc, family="binomial")
+AceRaceLogit<-glm(riskbhv ~ aceScore+race_cat, data=ace.1_cc, family="binomial")
+#likilihood ratio test: compare two  models
+lrtest(AceRaceEM, AceRaceLogit)
+
+AceEduEM<- glm(riskbhv ~ aceScore+edu_binary+(aceScore*edu_binary), data=ace.1_cc, family="binomial")
+AceEduLogit<-glm(riskbhv ~ aceScore+edu_binary, data=ace.1_cc, family="binomial")
+#likilihood ratio test: compare two  models
+lrtest(AceEduEM, AceEduLogit)
+```
+P values are not significant (0.05987, 0.1029, 0.1716) for ACEs score with Race and Education level, ACEs score with Race only, ACEs score with Education level only. So there is no effect modification
+
+##Create Table 1
+```{r}
+
+#Import library packages
+pacman::p_load(survival, survminer, tidyverse, readr, lmtest, table1)
+
+#Create a smaller dataset for creating table 1
+ace.1_table <- ace.1 %>%
+  select("rowID", "riskbhv", "aceScore", "aceScore_cat","X_EDUCAG","X_IMPRACE","X_AGE_G","SEXVAR","GENHLTH","INCOME2", "race_cat","edu_binary")
+
+#checking to make sure there are no NA's
+summary(ace.1_table)
+```
+```{r}
+#Data management for variables used in table 1
+#provide shorter names for variables
+names(ace.1_table)<-c("ID","risk_behavior","ACE_score","ACE_category", "edu_category","race","age_category", "sex", "general_health",
+               "household_income", "race_category", "edu_binary")
+
+#recode some variables
+ace.1_table <- ace.1_table %>%
+  mutate(edu_category = recode_factor(.x=edu_category,
+                                      `1`='Did not graduate High School',
+                                      `2`='Graduated High School',
+                                      `3`='Attended College or Technical School',
+                                      `4`='Graduated from College or Technical School'))%>%
+  mutate(race=recode_factor(.x=race,
+                            `1`='White, Non-Hispanic',
+                            `2`='Black, Non-Hispanic',
+                            `3`='Other, Non-Hispanic',
+                            `4`='Other, Non-Hispanic',
+                            `5`='Hispanic',
+                            `6`='Other, Non-Hispanic'))%>%
+  mutate(age_category=recode_factor(.x=age_category,
+                            `1`='Age 18 to 24',
+                            `2`='Age 25 to 34',
+                            `3`='Age 35 to 44',
+                            `4`='Age 45 to 54',
+                            `5`='Age 55 to 64',
+                            `6`='Age 65 or older'))%>%
+  mutate(sex=recode_factor(.x=sex,
+                            `1`='Male',
+                            `2`='Female')) %>%
+  mutate(general_health=recode_factor(.x=general_health,
+                            `1`='Excellent, Very good',
+                            `2`='Excellent, Very good',
+                            `3`='Good',
+                            `4`='Fair',
+                            `5`='Poor'))%>%
+  mutate(household_income=recode_factor(.x=household_income,
+                            `1`='Less than $25,000',
+                            `2`='Less than $25,000',
+                            `3`='Less than $25,000',
+                            `4`='Less than $25,000',
+                            `5`='$25,000-49,999',
+                            `6`='$25,000-49,999',
+                            `7`='$50,000 or more',
+                            `8`='$50,000 or more'))
+```
+
+```{r}
+# Adding labels to the variables
+label(ace.1_table$sex)<-"Sex"
+label(ace.1_table$age_category)<-"Age"
+label(ace.1_table$race)<-"Race/Ethnicity"
+label(ace.1_table$edu_category)<-"Education"
+label(ace.1_table$household_income)<-"Annual Household Income"
+label(ace.1_table$general_health)<-"Self-rated General Health"
+label(ace.1_table$risk_behavior)<-"Having Risk Behavior"
+#Let's make a table 1 with the table 1 function, which takes the form of an equation
+table1(~sex + age_category+race + edu_category  + household_income + general_health+risk_behavior|ACE_category, overall="Total",rowlabelhead="Variable", footnote='Risk Behavior = having either heavy alcohol or heavy tobacco consumption',ace.1_table)
+```
+# Figure 1 that shows exclusions to arrive at your analytic dataset can be made with a package called DiagrammeR and the function grViz. 
+```{r}
+install.packages("DiagrammeR")
+library(DiagrammeR)
+
+# The LLCP2020 dataset is 401,958 observations when it is read in and then after we exclude those are not in Missouri, the dataset is 9203 observations. If we exclude those with missing data on risk behavior, ACE experience, and education,we are left with 8,061 observations.
+
+#ace.1_cc <- ace.1 %>%
+  #na.omit() #omitting NA's in the data set
+#This code was adapted from: https://datascienceplus.com/how-to-build-a-simple-flowchart-with-r-diagrammer-package/
+
+#Figure 1
+grViz("digraph flowchart {
+
+      # node definitions with substituted label text
+      node [fontname = Helvetica, shape = rectangle, fontsize=10] 
+      #notes indicate how many boxes you will have in your diagram. Since I have two sets of exclusions, I will have three nodes.
+      tab1 [label = '@@1']
+      tab2 [label = '@@2']
+      tab3 [label = '@@3']
+      
+      # edge definitions with the node IDs are used to indicate how the rectangle boxes flow from each other. This is a simple flow chart but I could create branching instead as below
+      tab1 -> tab2 -> tab3 
+}
+      #This set of code provides the text in each rectangle box.
+      [1]: 'Records received from BRFSS(2020) for Adverse Childhood Experience n=401,958'
+      [2]: 'Excluding 392,755 individuals are not in Missouri n=9,203'
+      [3]: 'Excluding 1,142 individuals with missing data on variables used in the analysis n=8,061'
+      ")
+
+
+```
